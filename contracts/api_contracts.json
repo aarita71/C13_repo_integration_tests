@@ -1,0 +1,283 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API de Integração — Order Service + Product Catalog Service",
+    "version": "1.0.0",
+    "description": "Contrato de integração entre o serviço de pedidos e o serviço de catálogo de produtos"
+  },
+  "paths": {
+    "/api/products/{id}": {
+      "get": {
+        "summary": "Consultar produto por ID",
+        "description": "Endpoint do Product Catalog Service consultado pelo Order Service",
+        "operationId": "getProductById",
+        "tags": [
+          "Product Catalog"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID único do produto",
+            "schema": {
+              "type": "string",
+              "example": "PROD-1001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produto encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Produto não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "summary": "Criar novo pedido",
+        "description": "Endpoint do Order Service. Internamente consulta o Product Catalog Service.",
+        "operationId": "createOrder",
+        "tags": [
+          "Order Service"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pedido criado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida (validação de entrada)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Produto não encontrado no catálogo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Estoque insuficiente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Serviço de catálogo indisponível",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Product": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "price",
+          "stock",
+          "category"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID único do produto",
+            "example": "PROD-1001"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome do produto",
+            "example": "Notebook Dell Inspiron 15"
+          },
+          "price": {
+            "type": "number",
+            "format": "double",
+            "description": "Preço unitário em BRL",
+            "example": 3499.9
+          },
+          "stock": {
+            "type": "integer",
+            "description": "Quantidade disponível em estoque",
+            "example": 25
+          },
+          "category": {
+            "type": "string",
+            "description": "Categoria do produto",
+            "example": "Eletrônicos"
+          }
+        }
+      },
+      "CreateOrderRequest": {
+        "type": "object",
+        "required": [
+          "productId",
+          "quantity"
+        ],
+        "properties": {
+          "productId": {
+            "type": "string",
+            "description": "ID do produto no catálogo",
+            "example": "PROD-1001"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Quantidade desejada",
+            "example": 3
+          }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "example": "ORD-20240001"
+          },
+          "productId": {
+            "type": "string",
+            "example": "PROD-1001"
+          },
+          "productName": {
+            "type": "string",
+            "example": "Notebook Dell Inspiron 15"
+          },
+          "quantity": {
+            "type": "integer",
+            "example": 3
+          },
+          "unitPrice": {
+            "type": "number",
+            "format": "double",
+            "example": 3499.9
+          },
+          "totalPrice": {
+            "type": "number",
+            "format": "double",
+            "example": 10499.7
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED",
+              "PENDING",
+              "CANCELLED"
+            ],
+            "example": "CONFIRMED"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-24T10:30:00Z"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Código do erro",
+            "example": "PRODUCT_NOT_FOUND"
+          },
+          "message": {
+            "type": "string",
+            "description": "Mensagem descritiva do erro",
+            "example": "Produto PROD-9999 não encontrado no catálogo"
+          }
+        }
+      },
+      "StockError": {
+        "type": "object",
+        "required": [
+          "error",
+          "message",
+          "availableStock",
+          "requestedQuantity"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "INSUFFICIENT_STOCK"
+          },
+          "message": {
+            "type": "string",
+            "example": "Estoque insuficiente para o produto PROD-3010"
+          },
+          "productId": {
+            "type": "string",
+            "example": "PROD-3010"
+          },
+          "availableStock": {
+            "type": "integer",
+            "example": 0
+          },
+          "requestedQuantity": {
+            "type": "integer",
+            "example": 1
+          }
+        }
+      }
+    }
+  }
+}
